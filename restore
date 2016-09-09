@@ -1,0 +1,47 @@
+#!/bin/bash -e
+
+if [ -z "$GCLOUD_KEYFILE_BASE64" ] ; then
+    echo "GCLOUD_KEYFILE_BASE64 env is required!"
+    exit 1
+fi
+
+if [ -z "$GCLOUD_PROJECT" ] ; then
+    echo "GCLOUD_PROJECT env is required!"
+    exit 1
+fi
+
+if [ -z "$BUCKET" ] ; then
+    echo "BUCKET env is required!"
+    exit 1
+fi
+
+if [ -z "$FILE" ] ; then
+    echo "FILE env is required!"
+    exit 1
+fi
+
+DATADIR="/data"
+
+echo "Authenticating to Google Cloud..."
+echo $GCLOUD_KEYFILE_BASE64 | base64 --decode > /key.json
+gcloud auth activate-service-account --key-file /key.json --project "$GCLOUD_PROJECT" -q
+
+echo "Restoring $FILE ..."
+echo "Downloading from $BUCKET/$FILE.tar.gz ..."
+gsutil cp $BUCKET/$FILE.tar.gz /backup/bck.tar.gz 
+echo "Download complete."
+
+echo "Unpacking..."
+gzip -d /backup/bck.tar.gz
+
+tar xf /backup/bck.tar -C /backup
+echo "Unpacking complete."
+
+echo "Copying to restore directory..."
+rm -rf /backup/bck.tar
+cp -r /backup/backup/* /backup
+rm -rf /backup/backup
+
+cp -r /backup/* $DATADIR
+
+echo "Restoring complete."
